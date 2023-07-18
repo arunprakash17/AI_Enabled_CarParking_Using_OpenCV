@@ -4,7 +4,7 @@ import cv2
 import pickle
 import cvzone
 import numpy as np
-import ibm_db
+import mysql.connector
 import re
 
 
@@ -12,7 +12,14 @@ import re
 app = Flask(__name__)
 app.secret_key = 'a'
 
-conn = ibm_db.connect("DATABASE=bludb; HOSTNAME=fbd88901-ebdb-4a4f-a32e-9822b9fb237b.c1ogj3sd0tgtu0lqde00.databases.appdomain.cloud;PORT=32731;SECURITY=SSL;SSLServerCertificate=DigiCertGlobalRootCA.crt;UID=fzt08838;PASSWORD=epoeKtHkDHo5cQQ3","","")
+#conn = ibm_db.connect("DATABASE=bludb; HOSTNAME=fbd88901-ebdb-4a4f-a32e-9822b9fb237b.c1ogj3sd0tgtu0lqde00.databases.appdomain.cloud;PORT=32731;SECURITY=SSL;SSLServerCertificate=DigiCertGlobalRootCA.crt;UID=fzt08838;PASSWORD=epoeKtHkDHo5cQQ3","","")
+mydb = mysql.connector.connect(
+    host = "sql6.freesqldatabase.com",
+    user = "sql6633486",
+    password = "ghH9HnxLhy",
+    database = "sql6633486"
+)
+conn = mydb.cursor()
 print("connected")
 
 
@@ -38,24 +45,20 @@ def signup():
         name= request.form["name"]
         email = request.form["email"]
         password =request.form["password"]
-        sql = "SELECT * FROM REGISTER WHERE name = ?" 
-        stmt = ibm_db.prepare (conn, sql)
-        ibm_db.bind_param(stmt, 1, name)
-        ibm_db.execute(stmt)
-        account = ibm_db.fetch_assoc(stmt)
+        sql = "SELECT * FROM DETAILS WHERE password = %s and email = %s"
+        val = (email,password) 
+        conn.execute(sql,val)
+        account = conn.fetchall()
         print (account)
         if account:
             return render_template('login.html', error=True)
         elif not re.match(r'[^@]+@[^@]+\.[^@]+', email): 
             msg = "Invalid Email Address!"
         else:
-            insert_sql = "INSERT INTO REGISTER VALUES (?,?,?)"
-            prep_stmt =ibm_db.prepare(conn, insert_sql)
-            # this username & password should be same as db-2 details & order also
-            ibm_db.bind_param (prep_stmt, 1, name)
-            ibm_db.bind_param(prep_stmt, 2, email)
-            ibm_db.bind_param(prep_stmt, 3, password)
-            ibm_db.execute(prep_stmt)
+            insert_sql = "INSERT INTO DETAILS(name,email,password) VALUES(%s,%s,%s)"
+            val = (name,email,password)
+            conn.execute(insert_sql,val)
+            mydb.commit()
             msg = "You have successfully registered !"
     return render_template('login.html', msg=msg)
 
@@ -68,19 +71,12 @@ def login1():
        
         email = request.form["email"]
         password = request.form["password"]
-        sql = "SELECT * FROM REGISTER WHERE EMAIL=? AND PASSWORD=?"
-        stmt = ibm_db.prepare(conn, sql)
-
-        ibm_db.bind_param(stmt, 1, email)
-        ibm_db.bind_param(stmt, 2, password)
-        ibm_db.execute(stmt)
-        account = ibm_db.fetch_assoc(stmt)
+        sql = "SELECT * FROM DETAILS WHERE EMAIL = %s AND PASSWORD = %s"
+        val = (email,password)
+        conn.execute(sql,val)
+        account = conn.fetchall()
         print (account)
-       
         if account:
-            session['Loggedin'] = True
-            session['id'] = account['EMAIL']
-            session['email'] = account['EMAIL']
             return render_template('model.html')
         else:
             msg = "Incorrect Email/password"
